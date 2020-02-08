@@ -200,7 +200,10 @@ namespace OmpSupport
     e_depend_inout, 
 
     // not an OpenMP construct
-    e_not_omp
+    e_not_omp,
+
+    e_teams,
+    e_distribute
 
   }; //end omp_construct_enum
 

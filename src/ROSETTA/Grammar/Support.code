@@ -8187,34 +8187,34 @@ SgSymbolTable::find( const SgInitializedName* initializedName)
           assert(p_iterator->second != NULL);
           SgNode* symbolBasis = p_iterator->second->get_symbol_basis();
 
-#if DEBUG_FIND_INITIALIZED_NAME_SYMBOL
+#if 0
           printf ("In loop: p_iterator->second = %p symbolBasis = %p initializedName = %p \n",p_iterator->second,symbolBasis,initializedName);
           printf ("In loop: symbolBasis->variantT() = %d statement->variantT() = %d \n",symbolBasis->variantT(),initializedName->variantT());
 #endif
           assert(symbolBasis != NULL);
           if (isSgInitializedName(symbolBasis) != NULL)
              {
-#if DEBUG_FIND_INITIALIZED_NAME_SYMBOL
+#if 0
                printf ("found a SgInitializedName \n");
 #endif
                returnSymbol = p_iterator->second;
                if (returnSymbol->get_symbol_basis() == initializedName)
                   {
-#if DEBUG_FIND_INITIALIZED_NAME_SYMBOL
+#if 0
                     printf ("returnSymbol->get_symbol_basis() == initializedName returnSymbol = %p = %s \n",returnSymbol,returnSymbol->class_name().c_str());
 #endif
                     return returnSymbol;
                   }
                  else
                   {
-#if DEBUG_FIND_INITIALIZED_NAME_SYMBOL
+#if 1
                     printf ("returnSymbol->get_symbol_basis() != initializedName \n");
 #endif
                   }
              }
             else
              {
-#if DEBUG_FIND_INITIALIZED_NAME_SYMBOL
+#if 1
                printf ("Some other symbol was found (no matching variants) \n");
 #endif
              }

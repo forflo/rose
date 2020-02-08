@@ -541,6 +541,7 @@ SgOmpThreadprivateStatement
 SgOmpWorkshareStatement
 SgOmpTargetStatement
 SgOmpTargetDataStatement
+SgOmpTeamsStatement
 SgOmpSimdStatement
 SgOmpClause
 SgOmpBeginClause

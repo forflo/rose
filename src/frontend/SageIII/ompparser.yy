@@ -36,7 +36,7 @@ using namespace OmpSupport;
 /* Parser - BISON */
 
 /*the scanner function*/
-extern int omp_lex(); 
+extern int omp_lex();
 
 /*A customized initialization function for the scanner, str is the string to be scanned.*/
 extern void omp_lexer_init(const char* str);
@@ -74,27 +74,27 @@ static omp_construct_enum omptype = e_unknown;
 
 // The context node with the pragma annotation being parsed
 //
-// We attach the attribute to the pragma declaration directly for now, 
+// We attach the attribute to the pragma declaration directly for now,
 // A few OpenMP directive does not affect the next structure block
 // This variable is set by the prefix_parser_init() before prefix_parse() is called.
 //Liao
 static SgNode* gNode;
 
-static const char* orig_str; 
+static const char* orig_str;
 
-// The current expression node being generated 
+// The current expression node being generated
 static SgExpression* current_exp = NULL;
 bool b_within_variable_list  = false;  // a flag to indicate if the program is now processing a list of variables
 
 // We now follow the OpenMP 4.0 standard's C-style array section syntax: [lower-bound:length] or just [length]
 // the latest variable symbol being parsed, used to help parsing the array dimensions associated with array symbol
 // such as a[0:n][0:m]
-static SgVariableSymbol* array_symbol; 
+static SgVariableSymbol* array_symbol;
 static SgExpression* lower_exp = NULL;
 static SgExpression* length_exp = NULL;
 // check if the parsed a[][] is an array element access a[i][j] or array section a[lower:length][lower:length]
-// 
-static bool arraySection=true; 
+//
+static bool arraySection=true;
 
 %}
 
@@ -110,23 +110,24 @@ corresponding C type is union name defaults to YYSTYPE.
           void* ptype; /* For expressions */
         }
 
-/*Some operators have a suffix 2 to avoid name conflicts with ROSE's existing types, We may want to reuse them if it is proper. 
-  experimental BEGIN END are defined by default, we use TARGET_BEGIN TARGET_END instead. 
+/*Some operators have a suffix 2 to avoid name conflicts with ROSE's existing types, We may want to reuse them if it is proper.
+  experimental BEGIN END are defined by default, we use TARGET_BEGIN TARGET_END instead.
   Liao*/
 %token  OMP PARALLEL IF NUM_THREADS ORDERED SCHEDULE STATIC DYNAMIC GUIDED RUNTIME SECTIONS SINGLE NOWAIT SECTION
         FOR MASTER CRITICAL BARRIER ATOMIC FLUSH TARGET UPDATE DIST_DATA BLOCK DUPLICATE CYCLIC
-        THREADPRIVATE PRIVATE COPYPRIVATE FIRSTPRIVATE LASTPRIVATE SHARED DEFAULT NONE REDUCTION COPYIN 
+        TEAMS DISTRIBUTE
+        THREADPRIVATE PRIVATE COPYPRIVATE FIRSTPRIVATE LASTPRIVATE SHARED DEFAULT NONE REDUCTION COPYIN
         TASK TASKWAIT UNTIED COLLAPSE AUTO DECLARE DATA DEVICE MAP ALLOC TO FROM TOFROM PROC_BIND CLOSE SPREAD
         SIMD SAFELEN ALIGNED LINEAR UNIFORM INBRANCH NOTINBRANCH MPI MPI_ALL MPI_MASTER TARGET_BEGIN TARGET_END
         '(' ')' ',' ':' '+' '*' '-' '&' '^' '|' LOGAND LOGOR SHLEFT SHRIGHT PLUSPLUS MINUSMINUS PTR_TO '.'
         LE_OP2 GE_OP2 EQ_OP2 NE_OP2 RIGHT_ASSIGN2 LEFT_ASSIGN2 ADD_ASSIGN2
-        SUB_ASSIGN2 MUL_ASSIGN2 DIV_ASSIGN2 MOD_ASSIGN2 AND_ASSIGN2 
+        SUB_ASSIGN2 MUL_ASSIGN2 DIV_ASSIGN2 MOD_ASSIGN2 AND_ASSIGN2
         XOR_ASSIGN2 OR_ASSIGN2 DEPEND IN OUT INOUT MERGEABLE
         LEXICALERROR IDENTIFIER MIN MAX
         READ WRITE CAPTURE SIMDLEN FINAL PRIORITY
 /*We ignore NEWLINE since we only care about the pragma string , We relax the syntax check by allowing it as part of line continuation */
-%token <itype> ICONSTANT   
-%token <stype> EXPRESSION ID_EXPRESSION 
+%token <itype> ICONSTANT
+%token <stype> EXPRESSION ID_EXPRESSION
 
 /* associativity and precedence */
 %left '<' '>' '=' "!=" "<=" ">="
@@ -135,11 +136,11 @@ corresponding C type is union name defaults to YYSTYPE.
 
 /* nonterminals names, types for semantic values, only for nonterminals representing expressions!! not for clauses with expressions.
  */
-%type <ptype> expression assignment_expr conditional_expr 
+%type <ptype> expression assignment_expr conditional_expr
               logical_or_expr logical_and_expr
               inclusive_or_expr exclusive_or_expr and_expr
-              equality_expr relational_expr 
-              shift_expr additive_expr multiplicative_expr 
+              equality_expr relational_expr
+              shift_expr additive_expr multiplicative_expr
               primary_expr unary_expr postfix_expr variable_exp_list
 %type <itype> schedule_kind
 
@@ -153,7 +154,7 @@ corresponding C type is union name defaults to YYSTYPE.
  * paren.
  */
 
-openmp_directive : parallel_directive 
+openmp_directive : parallel_directive
                  | for_directive
                  | for_simd_directive
                  | declare_simd_directive
@@ -167,22 +168,50 @@ openmp_directive : parallel_directive
                  | critical_directive
                  | atomic_directive
                  | ordered_directive
-                 | barrier_directive 
+                 | barrier_directive
                  | taskwait_directive
                  | flush_directive
                  | threadprivate_directive
                  | section_directive
                  | target_directive
+                 | teams_directive
                  | target_data_directive
                  | simd_directive
                  ;
 
+
+teams_directive: /* #pragma */ OMP TEAMS {
+                 ompattribute = buildOmpAttribute(e_teams, gNode, true);
+                 omptype = e_teams;
+                 cur_omp_directive = omptype;
+                 }
+                 teams_clause_optseq
+                 ;
+
+teams_clause_optseq : /* empty */
+                       | teams_clause_seq
+                       ;
+
+teams_clause_seq : teams_clause
+                    | teams_clause_seq teams_clause
+                    | teams_clause_seq ',' teams_clause
+                    ;
+
+teams_clause :  num_threads_clause
+                /* | thread_limit_clause */
+                | share_clause
+                | reduction_clause
+                | firstprivate_clause
+                | private_clause
+                | default_clause
+                ;
+
 parallel_directive : /* #pragma */ OMP PARALLEL {
                        ompattribute = buildOmpAttribute(e_parallel,gNode,true);
-                       omptype = e_parallel; 
+                       omptype = e_parallel;
                        cur_omp_directive=omptype;
                      }
-                     parallel_clause_optseq 
+                     parallel_clause_optseq
                    ;
 
 parallel_clause_optseq : /* empty */
@@ -194,21 +223,21 @@ parallel_clause_seq : parallel_clause
                     | parallel_clause_seq ',' parallel_clause
                     ;
 
-proc_bind_clause : PROC_BIND '(' MASTER ')' { 
+proc_bind_clause : PROC_BIND '(' MASTER ')' {
                         ompattribute->addClause(e_proc_bind);
-                        ompattribute->setProcBindPolicy (e_proc_bind_master); 
+                        ompattribute->setProcBindPolicy (e_proc_bind_master);
                       }
                     | PROC_BIND '(' CLOSE ')' {
                         ompattribute->addClause(e_proc_bind);
-                        ompattribute->setProcBindPolicy (e_proc_bind_close); 
+                        ompattribute->setProcBindPolicy (e_proc_bind_close);
                       }
                     | PROC_BIND '(' SPREAD ')' {
                         ompattribute->addClause(e_proc_bind);
-                        ompattribute->setProcBindPolicy (e_proc_bind_spread); 
+                        ompattribute->setProcBindPolicy (e_proc_bind_spread);
                       }
                     ;
 
-/*  follow the order in the 4.5 specification  */ 
+/*  follow the order in the 4.5 specification  */
 parallel_clause : if_clause
                 | num_threads_clause
                 | default_clause
@@ -227,9 +256,9 @@ copyin_clause: COPYIN {
                 ;
 
 
-for_directive : /* #pragma */ OMP FOR { 
-                  ompattribute = buildOmpAttribute(e_for,gNode,true); 
-                  omptype = e_for; 
+for_directive : /* #pragma */ OMP FOR {
+                  ompattribute = buildOmpAttribute(e_for,gNode,true);
+                  omptype = e_for;
                   cur_omp_directive=omptype;
                 }
                 for_clause_optseq
@@ -240,7 +269,7 @@ for_clause_optseq: /* emtpy */
               ;
 
 for_clause_seq: for_clause
-              | for_clause_seq for_clause 
+              | for_clause_seq for_clause
               | for_clause_seq ',' for_clause
 
 /*  updated to 4.5 */
@@ -252,8 +281,8 @@ for_clause: private_clause
            | schedule_clause
            | collapse_clause
            | ordered_clause
-           | nowait_clause  
-          ; 
+           | nowait_clause
+          ;
 
 /* use this for the combined for simd directive */
 for_or_simd_clause : ordered_clause
@@ -264,14 +293,14 @@ for_or_simd_clause : ordered_clause
            | reduction_clause
            | collapse_clause
            | unique_simd_clause
-           | nowait_clause  
+           | nowait_clause
           ;
 
 schedule_chunk_opt: /* empty */
-                | ',' expression { 
+                | ',' expression {
                      addExpression("");
                  }
-                ; 
+                ;
 
 ordered_clause: ORDERED {
                       ompattribute->addClause(e_ordered_clause);
@@ -289,17 +318,17 @@ schedule_clause: SCHEDULE '(' schedule_kind {
                       ompattribute->addClause(e_schedule);
                       ompattribute->setScheduleKind(static_cast<omp_construct_enum>($3));
                       omptype = e_schedule; }
-                    schedule_chunk_opt  ')' 
+                    schedule_chunk_opt  ')'
                  ;
 
 collapse_clause: COLLAPSE {
                       ompattribute->addClause(e_collapse);
                       omptype = e_collapse;
-                    } '(' expression ')' { 
+                    } '(' expression ')' {
                       addExpression("");
                     }
                   ;
- 
+
 schedule_kind : STATIC  { $$ = e_schedule_static; }
               | DYNAMIC { $$ = e_schedule_dynamic; }
               | GUIDED  { $$ = e_schedule_guided; }
@@ -307,8 +336,8 @@ schedule_kind : STATIC  { $$ = e_schedule_static; }
               | RUNTIME { $$ = e_schedule_runtime; }
               ;
 
-sections_directive : /* #pragma */ OMP SECTIONS { 
-                       ompattribute = buildOmpAttribute(e_sections,gNode, true); 
+sections_directive : /* #pragma */ OMP SECTIONS {
+                       ompattribute = buildOmpAttribute(e_sections,gNode, true);
                      } sections_clause_optseq
                    ;
 
@@ -328,14 +357,14 @@ sections_clause : private_clause
                 | nowait_clause
                 ;
 
-section_directive : /* #pragma */  OMP SECTION { 
-                      ompattribute = buildOmpAttribute(e_section,gNode,true); 
+section_directive : /* #pragma */  OMP SECTION {
+                      ompattribute = buildOmpAttribute(e_section,gNode,true);
                     }
                   ;
 
-single_directive : /* #pragma */ OMP SINGLE { 
-                     ompattribute = buildOmpAttribute(e_single,gNode,true); 
-                     omptype = e_single; 
+single_directive : /* #pragma */ OMP SINGLE {
+                     ompattribute = buildOmpAttribute(e_single,gNode,true);
+                     omptype = e_single;
                    } single_clause_optseq
                  ;
 
@@ -357,22 +386,22 @@ single_clause : unique_single_clause
               | firstprivate_clause
               | nowait_clause
               ;
-unique_single_clause : COPYPRIVATE { 
+unique_single_clause : COPYPRIVATE {
                          ompattribute->addClause(e_copyprivate);
-                         omptype = e_copyprivate; 
+                         omptype = e_copyprivate;
                        }
                        '(' {b_within_variable_list = true;} variable_list ')' {b_within_variable_list =false;}
 
 task_directive : /* #pragma */ OMP TASK {
                    ompattribute = buildOmpAttribute(e_task,gNode,true);
-                   omptype = e_task; 
-                   cur_omp_directive = omptype; 
+                   omptype = e_task;
+                   cur_omp_directive = omptype;
                  } task_clause_optseq
                ;
 
-task_clause_optseq :  /* empty */ 
-                   | task_clause_seq 
-                   ; 
+task_clause_optseq :  /* empty */
+                   | task_clause_seq
+                   ;
 
 task_clause_seq    : task_clause
                    | task_clause_seq task_clause
@@ -388,16 +417,16 @@ task_clause : unique_task_clause
             | if_clause
             ;
 
-unique_task_clause : FINAL { 
+unique_task_clause : FINAL {
                        ompattribute->addClause(e_final);
-                       omptype = e_final; 
-                     } '(' expression ')' { 
+                       omptype = e_final;
+                     } '(' expression ')' {
                        addExpression("");
                      }
-                   | PRIORITY { 
+                   | PRIORITY {
                        ompattribute->addClause(e_priority);
-                       omptype = e_priority; 
-                     } '(' expression ')' { 
+                       omptype = e_priority;
+                     } '(' expression ')' {
                        addExpression("");
                      }
                    | UNTIED {
@@ -407,10 +436,10 @@ unique_task_clause : FINAL {
                        ompattribute->addClause(e_mergeable);
                      }
                    ;
-                   
-depend_clause : DEPEND { 
+
+depend_clause : DEPEND {
                           ompattribute->addClause(e_depend);
-                        } '(' dependence_type ':' {b_within_variable_list = true; array_symbol=NULL; } variable_exp_list ')' 
+                        } '(' dependence_type ':' {b_within_variable_list = true; array_symbol=NULL; } variable_exp_list ')'
                         {
                           assert ((ompattribute->getVariableList(omptype)).size()>0); /* I believe that depend() must have variables */
                           b_within_variable_list = false;
@@ -418,23 +447,23 @@ depend_clause : DEPEND {
                       ;
 
 dependence_type : IN {
-                       ompattribute->setDependenceType(e_depend_in); 
+                       ompattribute->setDependenceType(e_depend_in);
                        omptype = e_depend_in; /*variables are stored for each operator*/
                      }
                    | OUT {
-                       ompattribute->setDependenceType(e_depend_out);  
+                       ompattribute->setDependenceType(e_depend_out);
                        omptype = e_depend_out;
                      }
                    | INOUT {
-                       ompattribute->setDependenceType(e_depend_inout); 
+                       ompattribute->setDependenceType(e_depend_inout);
                        omptype = e_depend_inout;
                       }
                    ;
 
 
-parallel_for_directive : /* #pragma */ OMP PARALLEL FOR { 
-                           ompattribute = buildOmpAttribute(e_parallel_for,gNode, true); 
-                           omptype=e_parallel_for; 
+parallel_for_directive : /* #pragma */ OMP PARALLEL FOR {
+                           ompattribute = buildOmpAttribute(e_parallel_for,gNode, true);
+                           omptype=e_parallel_for;
                            cur_omp_directive = omptype;
                          } parallel_for_clauseoptseq
                        ;
@@ -462,13 +491,13 @@ parallel_for_clause : if_clause
                     | proc_bind_clause
                     | lastprivate_clause
                     | linear_clause
-                    | schedule_clause 
+                    | schedule_clause
                     | collapse_clause
                     | ordered_clause
                    ;
 
-parallel_for_simd_directive : /* #pragma */ OMP PARALLEL FOR SIMD { 
-                           ompattribute = buildOmpAttribute(e_parallel_for_simd, gNode, true); 
+parallel_for_simd_directive : /* #pragma */ OMP PARALLEL FOR SIMD {
+                           ompattribute = buildOmpAttribute(e_parallel_for_simd, gNode, true);
                            omptype= e_parallel_for_simd;
                            cur_omp_directive = omptype;
                          } parallel_for_simd_clauseoptseq
@@ -480,7 +509,7 @@ parallel_for_simd_clauseoptseq : /* empty */
 parallel_for_simd_clause_seq : parallel_for_simd_clause
                         | parallel_for_simd_clause_seq parallel_for_simd_clause
                         | parallel_for_simd_clause_seq ',' parallel_for_simd_clause
-                          
+
 parallel_for_simd_clause: copyin_clause
                     | ordered_clause
                     | schedule_clause
@@ -495,11 +524,11 @@ parallel_for_simd_clause: copyin_clause
                     | if_clause
                     | num_threads_clause
                     | proc_bind_clause
-                   ; 
- 
-parallel_sections_directive : /* #pragma */ OMP PARALLEL SECTIONS { 
-                                ompattribute =buildOmpAttribute(e_parallel_sections,gNode, true); 
-                                omptype = e_parallel_sections; 
+                   ;
+
+parallel_sections_directive : /* #pragma */ OMP PARALLEL SECTIONS {
+                                ompattribute =buildOmpAttribute(e_parallel_sections,gNode, true);
+                                omptype = e_parallel_sections;
                                 cur_omp_directive = omptype;
                               } parallel_sections_clause_optseq
                             ;
@@ -525,14 +554,14 @@ parallel_sections_clause : copyin_clause
                          | proc_bind_clause
                          ;
 
-master_directive : /* #pragma */ OMP MASTER { 
+master_directive : /* #pragma */ OMP MASTER {
                      ompattribute = buildOmpAttribute(e_master, gNode, true);
-                     cur_omp_directive = e_master; 
+                     cur_omp_directive = e_master;
 }
                  ;
 
 critical_directive : /* #pragma */ OMP CRITICAL {
-                       ompattribute = buildOmpAttribute(e_critical, gNode, true); 
+                       ompattribute = buildOmpAttribute(e_critical, gNode, true);
                        cur_omp_directive = e_critical;
                      } region_phraseopt
                    ;
@@ -545,25 +574,25 @@ region_phraseopt : /* empty */
  * Things that'd match it are, instead, ID_EXPRESSION. So use that here.
  * named critical section
  */
-region_phrase : '(' ID_EXPRESSION ')' { 
+region_phrase : '(' ID_EXPRESSION ')' {
                   ompattribute->setCriticalName((const char*)$2);
                 }
               ;
 
-barrier_directive : /* #pragma */ OMP BARRIER { 
-                      ompattribute = buildOmpAttribute(e_barrier,gNode, true); 
+barrier_directive : /* #pragma */ OMP BARRIER {
+                      ompattribute = buildOmpAttribute(e_barrier,gNode, true);
                       cur_omp_directive = e_barrier;
 }
                   ;
 
-taskwait_directive : /* #pragma */ OMP TASKWAIT { 
-                       ompattribute = buildOmpAttribute(e_taskwait, gNode, true);  
+taskwait_directive : /* #pragma */ OMP TASKWAIT {
+                       ompattribute = buildOmpAttribute(e_taskwait, gNode, true);
                        cur_omp_directive = e_taskwait;
                        }
                    ;
 
-atomic_directive : /* #pragma */ OMP ATOMIC { 
-                     ompattribute = buildOmpAttribute(e_atomic,gNode, true); 
+atomic_directive : /* #pragma */ OMP ATOMIC {
+                     ompattribute = buildOmpAttribute(e_atomic,gNode, true);
                      cur_omp_directive = e_atomic;
                      } atomic_clauseopt
                  ;
@@ -588,7 +617,7 @@ atomic_clause : READ { ompattribute->addClause(e_atomic_clause);
                 ;
 flush_directive : /* #pragma */ OMP FLUSH {
                     ompattribute = buildOmpAttribute(e_flush,gNode, true);
-                    omptype = e_flush; 
+                    omptype = e_flush;
                     cur_omp_directive = omptype;
                   } flush_varsopt
                 ;
@@ -600,22 +629,22 @@ flush_varsopt : /* empty */
 flush_vars : '(' {b_within_variable_list = true;} variable_list ')' {b_within_variable_list = false;}
            ;
 
-ordered_directive : /* #pragma */ OMP ORDERED { 
-                      ompattribute = buildOmpAttribute(e_ordered_directive,gNode, true); 
+ordered_directive : /* #pragma */ OMP ORDERED {
+                      ompattribute = buildOmpAttribute(e_ordered_directive,gNode, true);
                       cur_omp_directive = e_ordered_directive;
                     }
                   ;
 
 threadprivate_directive : /* #pragma */ OMP THREADPRIVATE {
-                            ompattribute = buildOmpAttribute(e_threadprivate,gNode, true); 
-                            omptype = e_threadprivate; 
+                            ompattribute = buildOmpAttribute(e_threadprivate,gNode, true);
+                            omptype = e_threadprivate;
                             cur_omp_directive = omptype;
                           } '(' {b_within_variable_list = true;} variable_list ')' {b_within_variable_list = false;}
                         ;
 
-default_clause : DEFAULT '(' SHARED ')' { 
+default_clause : DEFAULT '(' SHARED ')' {
                         ompattribute->addClause(e_default);
-                        ompattribute->setDefaultValue(e_default_shared); 
+                        ompattribute->setDefaultValue(e_default_shared);
                       }
                     | DEFAULT '(' NONE ')' {
                         ompattribute->addClause(e_default);
@@ -623,72 +652,72 @@ default_clause : DEFAULT '(' SHARED ')' {
                       }
                     ;
 
-                   
+
 private_clause : PRIVATE {
                               ompattribute->addClause(e_private); omptype = e_private;
                             } '(' {b_within_variable_list = true;} variable_list ')' {b_within_variable_list = false;}
                           ;
 
-firstprivate_clause : FIRSTPRIVATE { 
-                                 ompattribute->addClause(e_firstprivate); 
+firstprivate_clause : FIRSTPRIVATE {
+                                 ompattribute->addClause(e_firstprivate);
                                  omptype = e_firstprivate;
                                } '(' {b_within_variable_list = true;} variable_list ')' {b_within_variable_list = false;}
                              ;
 
-lastprivate_clause : LASTPRIVATE { 
-                                  ompattribute->addClause(e_lastprivate); 
+lastprivate_clause : LASTPRIVATE {
+                                  ompattribute->addClause(e_lastprivate);
                                   omptype = e_lastprivate;
                                 } '(' {b_within_variable_list = true;} variable_list ')' {b_within_variable_list = false;}
                               ;
 
 share_clause : SHARED {
-                        ompattribute->addClause(e_shared); omptype = e_shared; 
+                        ompattribute->addClause(e_shared); omptype = e_shared;
                       } '(' {b_within_variable_list = true;} variable_list ')' {b_within_variable_list = false;}
                     ;
 
-reduction_clause : REDUCTION { 
+reduction_clause : REDUCTION {
                           ompattribute->addClause(e_reduction);
                         } '(' reduction_operator ':' {b_within_variable_list = true;} variable_list ')' {b_within_variable_list = false;}
                       ;
 
 reduction_operator : '+' {
-                       ompattribute->setReductionOperator(e_reduction_plus); 
+                       ompattribute->setReductionOperator(e_reduction_plus);
                        omptype = e_reduction_plus; /*variables are stored for each operator*/
                      }
                    | '*' {
-                       ompattribute->setReductionOperator(e_reduction_mul);  
+                       ompattribute->setReductionOperator(e_reduction_mul);
                        omptype = e_reduction_mul;
                      }
                    | '-' {
-                       ompattribute->setReductionOperator(e_reduction_minus); 
+                       ompattribute->setReductionOperator(e_reduction_minus);
                        omptype = e_reduction_minus;
                       }
                    | MIN {
-                       ompattribute->setReductionOperator(e_reduction_min); 
+                       ompattribute->setReductionOperator(e_reduction_min);
                        omptype = e_reduction_min;
                       }
                    | MAX {
-                       ompattribute->setReductionOperator(e_reduction_max); 
+                       ompattribute->setReductionOperator(e_reduction_max);
                        omptype = e_reduction_max;
                       }
                    | '&' {
-                       ompattribute->setReductionOperator(e_reduction_bitand);  
+                       ompattribute->setReductionOperator(e_reduction_bitand);
                        omptype = e_reduction_bitand;
                       }
                    | '^' {
-                       ompattribute->setReductionOperator(e_reduction_bitxor);  
+                       ompattribute->setReductionOperator(e_reduction_bitxor);
                        omptype = e_reduction_bitxor;
                       }
                    | '|' {
-                       ompattribute->setReductionOperator(e_reduction_bitor);  
+                       ompattribute->setReductionOperator(e_reduction_bitor);
                        omptype = e_reduction_bitor;
                       }
                    | LOGAND /* && */ {
-                       ompattribute->setReductionOperator(e_reduction_logand);  
+                       ompattribute->setReductionOperator(e_reduction_logand);
                        omptype = e_reduction_logand;
                      }
                    | LOGOR /* || */ {
-                       ompattribute->setReductionOperator(e_reduction_logor); 
+                       ompattribute->setReductionOperator(e_reduction_logor);
                        omptype = e_reduction_logor;
                      }
                    ;
@@ -705,7 +734,7 @@ target_data_clause_seq : target_data_clause
                     | target_data_clause_seq ',' target_data_clause
                     ;
 
-target_data_clause : device_clause 
+target_data_clause : device_clause
                 | map_clause
                 | if_clause
                 ;
@@ -715,7 +744,7 @@ target_directive: /* #pragma */ OMP TARGET {
                        omptype = e_target;
                        cur_omp_directive = omptype;
                      }
-                     target_clause_optseq 
+                     target_clause_optseq
                    ;
 
 target_clause_optseq : /* empty */
@@ -727,7 +756,7 @@ target_clause_seq : target_clause
                     | target_clause_seq ',' target_clause
                     ;
 
-target_clause : device_clause 
+target_clause : device_clause
                 | map_clause
                 | if_clause
                 | num_threads_clause
@@ -748,9 +777,9 @@ device_clause : DEVICE {
 device_clause : DEVICE {
                            ompattribute->addClause(e_device);
                            omptype = e_device;
-                         } '(' expression_or_star_or_mpi 
+                         } '(' expression_or_star_or_mpi
                 ;
-expression_or_star_or_mpi: 
+expression_or_star_or_mpi:
                   MPI ')' { // special mpi device for supporting MPI code generation
                             current_exp= SageBuilder::buildStringVal("mpi");
                             addExpression("mpi");
@@ -766,9 +795,9 @@ expression_or_star_or_mpi:
                   | expression ')' { //normal expression
                            addExpression("");
                           }
-                  | '*' ')' { // our extension device (*) 
-                            current_exp= SageBuilder::buildCharVal('*'); 
-                            addExpression("*");  }; 
+                  | '*' ')' { // our extension device (*)
+                            current_exp= SageBuilder::buildCharVal('*');
+                            addExpression("*");  };
 
 
 begin_clause: TARGET_BEGIN {
@@ -783,7 +812,7 @@ end_clause: TARGET_END {
                     }
                     ;
 
-                    
+
 if_clause: IF {
                            ompattribute->addClause(e_if);
                            omptype = e_if;
@@ -802,25 +831,25 @@ num_threads_clause: NUM_THREADS {
 map_clause: MAP {
                           ompattribute->addClause(e_map);
                            omptype = e_map; // use as a flag to see if it will be reset later
-                     } '(' map_clause_optseq 
-                     { 
+                     } '(' map_clause_optseq
+                     {
                        b_within_variable_list = true;
                        if (omptype == e_map) // map data directions are not explicitly specified
                        {
-                          ompattribute->setMapVariant(e_map_tofrom);  omptype = e_map_tofrom;  
+                          ompattribute->setMapVariant(e_map_tofrom);  omptype = e_map_tofrom;
                        }
-                     } 
-                     map_variable_list ')' { b_within_variable_list =false;} 
+                     }
+                     map_variable_list ')' { b_within_variable_list =false;}
 
 map_clause_optseq: /* empty, default to be tofrom*/ { ompattribute->setMapVariant(e_map_tofrom);  omptype = e_map_tofrom; /*No effect here???*/ }
-                    | ALLOC ':' { ompattribute->setMapVariant(e_map_alloc);  omptype = e_map_alloc; } 
-                    | TO     ':' { ompattribute->setMapVariant(e_map_to); omptype = e_map_to; } 
-                    | FROM    ':' { ompattribute->setMapVariant(e_map_from); omptype = e_map_from; } 
-                    | TOFROM  ':' { ompattribute->setMapVariant(e_map_tofrom); omptype = e_map_tofrom; } 
+                    | ALLOC ':' { ompattribute->setMapVariant(e_map_alloc);  omptype = e_map_alloc; }
+                    | TO     ':' { ompattribute->setMapVariant(e_map_to); omptype = e_map_to; }
+                    | FROM    ':' { ompattribute->setMapVariant(e_map_from); omptype = e_map_from; }
+                    | TOFROM  ':' { ompattribute->setMapVariant(e_map_tofrom); omptype = e_map_tofrom; }
                     ;
 
-for_simd_directive : /* #pragma */ OMP FOR SIMD { 
-                  ompattribute = buildOmpAttribute(e_for_simd, gNode,true); 
+for_simd_directive : /* #pragma */ OMP FOR SIMD {
+                  ompattribute = buildOmpAttribute(e_for_simd, gNode,true);
                   cur_omp_directive = e_for_simd;
                 }
                 for_or_simd_clause_optseq
@@ -832,20 +861,20 @@ for_or_simd_clause_optseq:  /* empty*/
                       ;
 
 simd_directive: /* # pragma */ OMP SIMD
-                  { ompattribute = buildOmpAttribute(e_simd,gNode,true); 
-                    omptype = e_simd; 
+                  { ompattribute = buildOmpAttribute(e_simd,gNode,true);
+                    omptype = e_simd;
                     cur_omp_directive = omptype;
                     }
                    simd_clause_optseq
                 ;
 
 simd_clause_optseq: /*empty*/
-             | simd_clause_seq 
+             | simd_clause_seq
             ;
 
 simd_clause_seq: simd_clause
-               |  simd_clause_seq simd_clause 
-               |  simd_clause_seq ',' simd_clause 
+               |  simd_clause_seq simd_clause
+               |  simd_clause_seq ',' simd_clause
               ;
 
 /* updated to 4.5 */
@@ -872,7 +901,7 @@ safelen_clause :  SAFELEN {
                       } '(' expression ')' {
                         addExpression("");
                  }
-                ; 
+                ;
 
 unique_simd_clause: safelen_clause
                 | simdlen_clause
@@ -884,8 +913,8 @@ simdlen_clause: SIMDLEN {
                           ompattribute->addClause(e_simdlen);
                           omptype = e_simdlen;
                           } '(' expression ')' {
-                          addExpression(""); 
-                      } 
+                          addExpression("");
+                      }
                   ;
 
 declare_simd_directive: OMP DECLARE SIMD {
@@ -903,7 +932,7 @@ declare_simd_clause_seq
                 : declare_simd_clause
                 | declare_simd_clause_seq declare_simd_clause
                 | declare_simd_clause_seq ',' declare_simd_clause
-                ; 
+                ;
 
 declare_simd_clause     : simdlen_clause
                 | linear_clause
@@ -913,16 +942,16 @@ declare_simd_clause     : simdlen_clause
                 | NOTINBRANCH { ompattribute->addClause(e_notinbranch); omptype = e_notinbranch; /*TODO: this is temporary, to be moved to declare simd */ }
               ;
 
-uniform_clause : UNIFORM { 
+uniform_clause : UNIFORM {
                          ompattribute->addClause(e_uniform);
-                         omptype = e_uniform; 
+                         omptype = e_uniform;
                        }
                        '(' {b_within_variable_list = true;} variable_list ')' {b_within_variable_list =false;}
                 ;
 
-aligned_clause : ALIGNED { 
+aligned_clause : ALIGNED {
                          ompattribute->addClause(e_aligned);
-                         omptype = e_aligned; 
+                         omptype = e_aligned;
                        }
                        '(' {b_within_variable_list = true;} variable_list {b_within_variable_list =false;} aligned_clause_optseq ')'
                ;
@@ -930,12 +959,12 @@ aligned_clause_optseq: /* empty */
                         | aligned_clause_alignment
                         ;
 
-aligned_clause_alignment: ':' expression {addExpression(""); } 
+aligned_clause_alignment: ':' expression {addExpression(""); }
 
 
-linear_clause :  LINEAR { 
+linear_clause :  LINEAR {
                          ompattribute->addClause(e_linear);
-                         omptype = e_linear; 
+                         omptype = e_linear;
                         }
                        '(' {b_within_variable_list = true;} variable_list {b_within_variable_list =false;}  linear_clause_step_optseq ')'
                 ;
@@ -944,10 +973,10 @@ linear_clause_step_optseq: /* empty */
                         | linear_clause_step
                         ;
 
-linear_clause_step: ':' expression {addExpression(""); } 
+linear_clause_step: ':' expression {addExpression(""); }
 
 /* parsing real expressions here, Liao, 10/12/2008
-   */       
+   */
 /* expression: { omp_parse_expr(); } EXPRESSION { if (!addExpression((const char*)$2)) YYABORT; }
 */
 /* Sara Royuela, 04/27/2012
@@ -956,82 +985,82 @@ linear_clause_step: ':' expression {addExpression(""); }
 expression : assignment_expr
 
 assignment_expr : conditional_expr
-                | logical_or_expr 
+                | logical_or_expr
                 | unary_expr '=' assignment_expr  {
                     current_exp = SageBuilder::buildAssignOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
+                    );
                     $$ = current_exp;
                   }
                 | unary_expr RIGHT_ASSIGN2 assignment_expr {
                     current_exp = SageBuilder::buildRshiftAssignOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
+                    );
                     $$ = current_exp;
                   }
                 | unary_expr LEFT_ASSIGN2 assignment_expr {
                     current_exp = SageBuilder::buildLshiftAssignOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
+                    );
                     $$ = current_exp;
                   }
                 | unary_expr ADD_ASSIGN2 assignment_expr {
                     current_exp = SageBuilder::buildPlusAssignOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
+                    );
                     $$ = current_exp;
                   }
                 | unary_expr SUB_ASSIGN2 assignment_expr {
                     current_exp = SageBuilder::buildMinusAssignOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
+                    );
                     $$ = current_exp;
                   }
                 | unary_expr MUL_ASSIGN2 assignment_expr {
                     current_exp = SageBuilder::buildMultAssignOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
+                    );
                     $$ = current_exp;
                   }
                 | unary_expr DIV_ASSIGN2 assignment_expr {
                     current_exp = SageBuilder::buildDivAssignOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
+                    );
                     $$ = current_exp;
                   }
                 | unary_expr MOD_ASSIGN2 assignment_expr {
                     current_exp = SageBuilder::buildModAssignOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
+                    );
                     $$ = current_exp;
                   }
                 | unary_expr AND_ASSIGN2 assignment_expr {
                     current_exp = SageBuilder::buildAndAssignOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
+                    );
                     $$ = current_exp;
                   }
                 | unary_expr XOR_ASSIGN2 assignment_expr {
                     current_exp = SageBuilder::buildXorAssignOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
+                    );
                     $$ = current_exp;
                   }
                 | unary_expr OR_ASSIGN2 assignment_expr {
                     current_exp = SageBuilder::buildIorAssignOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
+                    );
                     $$ = current_exp;
                   }
                 ;
@@ -1094,54 +1123,54 @@ and_expr : equality_expr
              );
              $$ = current_exp;
            }
-         ;  
+         ;
 
 equality_expr : relational_expr
               | equality_expr EQ_OP2 relational_expr {
                   current_exp = SageBuilder::buildEqualityOp(
                     (SgExpression*)($1),
                     (SgExpression*)($3)
-                  ); 
+                  );
                   $$ = current_exp;
                 }
               | equality_expr NE_OP2 relational_expr {
                   current_exp = SageBuilder::buildNotEqualOp(
                     (SgExpression*)($1),
                     (SgExpression*)($3)
-                  ); 
+                  );
                   $$ = current_exp;
                 }
               ;
-              
+
 relational_expr : shift_expr
-                | relational_expr '<' shift_expr { 
+                | relational_expr '<' shift_expr {
                     current_exp = SageBuilder::buildLessThanOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
-                    $$ = current_exp; 
+                    );
+                    $$ = current_exp;
                   // std::cout<<"debug: buildLessThanOp():\n"<<current_exp->unparseToString()<<std::endl;
                   }
                 | relational_expr '>' shift_expr {
                     current_exp = SageBuilder::buildGreaterThanOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
-                    $$ = current_exp; 
+                    );
+                    $$ = current_exp;
                   }
                 | relational_expr LE_OP2 shift_expr {
                     current_exp = SageBuilder::buildLessOrEqualOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
-                    ); 
-                    $$ = current_exp; 
+                    );
+                    $$ = current_exp;
                   }
                 | relational_expr GE_OP2 shift_expr {
                     current_exp = SageBuilder::buildGreaterOrEqualOp(
                       (SgExpression*)($1),
                       (SgExpression*)($3)
                     );
-                    $$ = current_exp; 
+                    $$ = current_exp;
                   }
                 ;
 
@@ -1150,15 +1179,15 @@ shift_expr : additive_expr
                current_exp = SageBuilder::buildRshiftOp(
                  (SgExpression*)($1),
                  (SgExpression*)($3)
-               ); 
-               $$ = current_exp; 
+               );
+               $$ = current_exp;
              }
            | shift_expr SHLEFT additive_expr {
                current_exp = SageBuilder::buildLshiftOp(
                  (SgExpression*)($1),
                  (SgExpression*)($3)
-               ); 
-               $$ = current_exp; 
+               );
+               $$ = current_exp;
              }
            ;
 
@@ -1167,15 +1196,15 @@ additive_expr : multiplicative_expr
                   current_exp = SageBuilder::buildAddOp(
                     (SgExpression*)($1),
                     (SgExpression*)($3)
-                  ); 
-                  $$ = current_exp; 
+                  );
+                  $$ = current_exp;
                 }
               | additive_expr '-' multiplicative_expr {
                   current_exp = SageBuilder::buildSubtractOp(
                     (SgExpression*)($1),
                     (SgExpression*)($3)
-                  ); 
-                  $$ = current_exp; 
+                  );
+                  $$ = current_exp;
                 }
               ;
 
@@ -1184,22 +1213,22 @@ multiplicative_expr : primary_expr
                         current_exp = SageBuilder::buildMultiplyOp(
                           (SgExpression*)($1),
                           (SgExpression*)($3)
-                        ); 
-                        $$ = current_exp; 
+                        );
+                        $$ = current_exp;
                       }
                     | multiplicative_expr '/' primary_expr {
                         current_exp = SageBuilder::buildDivideOp(
                           (SgExpression*)($1),
                           (SgExpression*)($3)
-                        ); 
-                        $$ = current_exp; 
+                        );
+                        $$ = current_exp;
                       }
                     | multiplicative_expr '%' primary_expr {
                         current_exp = SageBuilder::buildModOp(
                           (SgExpression*)($1),
                           (SgExpression*)($3)
-                        ); 
-                        $$ = current_exp; 
+                        );
+                        $$ = current_exp;
                       }
                     ;
 
@@ -1215,13 +1244,13 @@ primary_expr : ICONSTANT {
               }
              | '(' expression ')' {
                  $$ = current_exp;
-               } 
+               }
              ;
 
 unary_expr : postfix_expr {
              current_exp = (SgExpression*)($1);
              $$ = current_exp;
-            }  
+            }
            |PLUSPLUS unary_expr {
               current_exp = SageBuilder::buildPlusPlusOp(
                 (SgExpression*)($2),
@@ -1238,32 +1267,32 @@ unary_expr : postfix_expr {
             }
 
            ;
-/* Follow ANSI-C yacc grammar */                
+/* Follow ANSI-C yacc grammar */
 postfix_expr:primary_expr {
-               arraySection= false; 
+               arraySection= false;
                  current_exp = (SgExpression*)($1);
                  $$ = current_exp;
              }
             |postfix_expr '[' expression ']' {
-               arraySection= false; 
+               arraySection= false;
                current_exp = SageBuilder::buildPntrArrRefExp((SgExpression*)($1), (SgExpression*)($3));
                $$ = current_exp;
              }
             | postfix_expr '[' expression ':' expression ']'
              {
                arraySection= true; // array section // TODO; BEST solution: still need a tree here!!
-               // only add  symbol to the attribute for this first time 
+               // only add  symbol to the attribute for this first time
                // postfix_expr should be ID_EXPRESSION
                if (!array_symbol)
-               {  
+               {
                  SgVarRefExp* vref = isSgVarRefExp((SgExpression*)($1));
                  assert (vref);
                  array_symbol = ompattribute->addVariable(omptype, vref->unparseToString());
                  // if (!addVar((const char*) )) YYABORT;
                  //std::cout<<("!array_symbol, add variable for \n")<< vref->unparseToString()<<std::endl;
                }
-               lower_exp= NULL; 
-               length_exp= NULL; 
+               lower_exp= NULL;
+               length_exp= NULL;
                lower_exp = (SgExpression*)($3);
                length_exp = (SgExpression*)($5);
                assert (array_symbol != NULL);
@@ -1277,20 +1306,20 @@ postfix_expr:primary_expr {
                }
                assert (lower_exp && length_exp);
                ompattribute->array_dimensions[array_symbol].push_back( std::make_pair (lower_exp, length_exp));
-             }  
+             }
             | postfix_expr PLUSPLUS {
                   current_exp = SageBuilder::buildPlusPlusOp(
                     (SgExpression*)($1),
                     SgUnaryOp::postfix
-                  ); 
-                  $$ = current_exp; 
+                  );
+                  $$ = current_exp;
                 }
              | postfix_expr MINUSMINUS {
                   current_exp = SageBuilder::buildMinusMinusOp(
                     (SgExpression*)($1),
                     SgUnaryOp::postfix
-                  ); 
-                  $$ = current_exp; 
+                  );
+                  $$ = current_exp;
              }
             ;
 
@@ -1298,29 +1327,29 @@ postfix_expr:primary_expr {
 
 /*  in C
 variable-list : identifier
-              | variable-list , identifier 
+              | variable-list , identifier
 */
 
-/* in C++ (we use the C++ version) */ 
+/* in C++ (we use the C++ version) */
 variable_list : ID_EXPRESSION { if (!addVar((const char*)$1)) YYABORT; }
               | variable_list ',' ID_EXPRESSION { if (!addVar((const char*)$3)) YYABORT; }
               ;
 
 /*  depend( array1[i][k], array2[p][l]), real array references in the list  */
-variable_exp_list : postfix_expr { 
+variable_exp_list : postfix_expr {
                  if (!arraySection) // regular array or scalar references: we add the entire array reference to the variable list
-                   if (!addVarExp((SgExpression*)$1)) YYABORT; 
-                 array_symbol = NULL; //reset array symbol when done.   
+                   if (!addVarExp((SgExpression*)$1)) YYABORT;
+                 array_symbol = NULL; //reset array symbol when done.
                }
-              | variable_exp_list ',' postfix_expr 
-                { 
+              | variable_exp_list ',' postfix_expr
+                {
                  if (!arraySection)
-                    if (!addVarExp((SgExpression*)$3)) YYABORT; 
+                    if (!addVarExp((SgExpression*)$3)) YYABORT;
                 }
               ;
 
 
-/* map (array[lower:length][lower:length])  , not array references, but array section notations */ 
+/* map (array[lower:length][lower:length])  , not array references, but array section notations */
 map_variable_list : id_expression_opt_dimension
               | map_variable_list ',' id_expression_opt_dimension
               ;
@@ -1337,7 +1366,7 @@ dimension_field_seq : dimension_field
                     | dimension_field_seq dimension_field
                     ;
 
-dimension_field: '[' expression {lower_exp = current_exp; } 
+dimension_field: '[' expression {lower_exp = current_exp; }
                  ':' expression { length_exp = current_exp;
                       assert (array_symbol != NULL);
                       SgType* t = array_symbol->get_type();
@@ -1349,18 +1378,18 @@ dimension_field: '[' expression {lower_exp = current_exp; }
                         std::cerr<<"while seeing "<<t->class_name()<<std::endl;
                       }
                       ompattribute->array_dimensions[array_symbol].push_back( std::make_pair (lower_exp, length_exp));
-                      } 
+                      }
                   ']'
                ;
 /* commenting out experimental stuff
 Optional data distribution clause: dist_data(dim1_policy, dim2_policy, dim3_policy)
-mixed keyword or variable parsing is tricky TODO 
+mixed keyword or variable parsing is tricky TODO
 one or more dimensions, each has a policy
 reset current_exp to avoid leaving stale values
-Optional (exp) for some policy                   
+Optional (exp) for some policy
 id_expression_opt_dimension: ID_EXPRESSION { if (!addVar((const char*)$1)) YYABORT; } dimension_field_optseq id_expression_opt_dist_data
                            ;
-id_expression_opt_dist_data: empty 
+id_expression_opt_dist_data: empty
                            | DIST_DATA '(' dist_policy_seq ')'
                            ;
 dist_policy_seq: dist_policy_per_dim
@@ -1379,7 +1408,7 @@ dist_size_opt: empty {current_exp = NULL;}
 int yyerror(const char *s) {
     SgLocatedNode* lnode = isSgLocatedNode(gNode);
     assert (lnode);
-    printf("Error when parsing pragma:\n\t %s \n\t associated with node at line %d\n", orig_str, lnode->get_file_info()->get_line()); 
+    printf("Error when parsing pragma:\n\t %s \n\t associated with node at line %d\n", orig_str, lnode->get_file_info()->get_line());
     printf(" %s!\n", s);
     assert(0);
     return 0; // we want to the program to stop on error
@@ -1391,7 +1420,7 @@ OmpAttribute* getParsedDirective() {
 }
 
 void omp_parser_init(SgNode* aNode, const char* str) {
-    orig_str = str;  
+    orig_str = str;
     omp_lexer_init(str);
     gNode = aNode;
 }
@@ -1416,4 +1445,3 @@ static bool addExpression(const char* expr) {
     ompattribute->addExpression(omptype,std::string(expr),current_exp);
     return true;
 }
-
