@@ -5,7 +5,7 @@
 
 %{
 
-/* DQ (12/10/2016): This is a technique to suppress warnings in generated code that we want to be an error elsewhere in ROSE. 
+/* DQ (12/10/2016): This is a technique to suppress warnings in generated code that we want to be an error elsewhere in ROSE.
    See https://gcc.gnu.org/onlinedocs/gcc/Diagnostic-Pragmas.html for more detail.
  */
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
@@ -22,7 +22,7 @@ extern int omp_lex();
 #include <string.h>
 #include "ompparser.h"
 
-/* Moved from Makefile.am to the source file to work with --with-pch 
+/* Moved from Makefile.am to the source file to work with --with-pch
 Liao 12/10/2009 */
 #define YY_NO_TOP_STATE
 #define YY_NO_POP_STATE
@@ -41,8 +41,8 @@ extern bool b_within_variable_list ; /* = false; */
 /*conditionally return either a clause token or ID_EXPRESSION, depending on the context.
   We should use it for any OpenMP keyword which could potentially used by users as a variable within a variable list.*/
 static int cond_return (int input);
-/* pass user specified string to buf, indicate the size using 'result', 
-   and shift the current position pointer of user input afterwards 
+/* pass user specified string to buf, indicate the size using 'result',
+   and shift the current position pointer of user input afterwards
    to prepare next round of token recognition!!
 */
 #define YY_INPUT(buf, result, max_size) { \
@@ -71,7 +71,7 @@ taskwait        { return cond_return ( TASKWAIT ); }
 untied          { return cond_return ( UNTIED );}
 mergeable       { return cond_return ( MERGEABLE );}
 if              { return ( IF); } /*if is a keyword in C/C++, no change to be a variable*/
-num_threads     { /*Can be either a clause name or a variable name */ 
+num_threads     { /*Can be either a clause name or a variable name */
                   return cond_return (NUM_THREADS);
                   /*
                   if (b_within_variable_list)
@@ -79,15 +79,17 @@ num_threads     { /*Can be either a clause name or a variable name */
                     omp_lval.stype = strdup(yytext);
                      return ID_EXPRESSION;
                   }
-                  else 
-                    return ( NUM_THREADS); 
+                  else
+                    return ( NUM_THREADS);
                     */
-                } 
+                }
 ordered         { return cond_return ( ORDERED  ); }
 schedule        { return cond_return ( SCHEDULE ); }
 static          { return ( STATIC ); }  /*keyword in C/C++ */
-dynamic         { return cond_return ( DYNAMIC ); } 
+dynamic         { return cond_return ( DYNAMIC ); }
 guided          { return cond_return ( GUIDED ); }
+teams           { return cond_return ( TEAMS ); }
+distribute      { return cond_return ( DISTRIBUTE ); }
 runtime         { return cond_return ( RUNTIME ); }
 auto            { return ( AUTO ); } /*keyword in C/C++ ?*/
 sections        { return cond_return  ( SECTIONS ); }
@@ -107,8 +109,8 @@ copyprivate     { return cond_return ( COPYPRIVATE ); }
 firstprivate    { return cond_return ( FIRSTPRIVATE ); }
 lastprivate     { return cond_return ( LASTPRIVATE ); }
 default         { return cond_return ( DEFAULT ); }
-shared          { return cond_return ( SHARED ); } 
-none            { return cond_return ( NONE ); } 
+shared          { return cond_return ( SHARED ); }
+none            { return cond_return ( NONE ); }
 reduction       { return cond_return ( REDUCTION ); }
 min             { return cond_return ( MIN ); }
 max             { return cond_return ( MAX ); }
@@ -118,10 +120,10 @@ notinbranch     { return cond_return ( NOTINBRANCH ); }
 proc_bind       { return cond_return ( PROC_BIND); }
 close           { return cond_return ( CLOSE ); }
 spread          { return cond_return ( SPREAD ); } /* master should already be recognized */
-depend          { return cond_return ( DEPEND ); } 
-in              { return cond_return ( IN ); } 
-out             { return cond_return ( OUT ); } 
-inout           { return cond_return ( INOUT ); } 
+depend          { return cond_return ( DEPEND ); }
+in              { return cond_return ( IN ); }
+out             { return cond_return ( OUT ); }
+inout           { return cond_return ( INOUT ); }
 read            { return cond_return ( READ ); }
 write           { return cond_return ( WRITE ); }
 capture         { return cond_return ( CAPTURE ); }
@@ -149,7 +151,7 @@ uniform         {return cond_return ( UNIFORM ); }
 final           {return cond_return ( FINAL ); }
 priority        {return cond_return ( PRIORITY); }
 dist_data       {return ( DIST_DATA); } /*Extensions for data distribution clause
-It is tricky to support mixed variable vs. keyword parsing for dist_data() since it is part of variable list parsing 
+It is tricky to support mixed variable vs. keyword parsing for dist_data() since it is part of variable list parsing
 We enforce that users won't use variable names colliding with the keywords (no cond_return() is used)
 TODO: later we can relax this restriction. Fine-grain control of cond_return with new flags.
 */
@@ -214,7 +216,7 @@ CYCLIC          {return ( CYCLIC ); }
                                 --parenCount;
                         if (parenCount == 0) {
                                 unput(')');
-                                omp_lval.stype =strdup(gExpressionString.c_str()); 
+                                omp_lval.stype =strdup(gExpressionString.c_str());
                                 gExpressionString = "";
                                 BEGIN(INITIAL);
                                 return EXPRESSION;
@@ -224,12 +226,12 @@ CYCLIC          {return ( CYCLIC ); }
                                 parenCount++;
                         c = yyinput();
                   }
-                        
+
                 }
 
 expr            { return (EXPRESSION); }
 identifier      { return (IDENTIFIER); /*not in use for now*/ }
-{id}            { omp_lval.stype = strdup(yytext); 
+{id}            { omp_lval.stype = strdup(yytext);
                   return (ID_EXPRESSION); }
 
 {blank}*        ;
@@ -258,10 +260,9 @@ static int cond_return (int input)
     return ID_EXPRESSION;
   }
   else
-    return ( input); 
+    return ( input);
 }
 /**
  * @file
  * Lexer for OpenMP-pragmas.
  */
-
