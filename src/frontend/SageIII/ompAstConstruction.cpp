@@ -1924,6 +1924,8 @@ This is no perfect solution until we handle preprocessing information as structu
           case e_task:
           case e_sections:
           case e_target: // OMP-ACC directive
+          case e_teams:
+          case e_distribute:
           case e_target_data:
           case e_simd:  // OMP 4.0 SIMD directive
             //fortran
