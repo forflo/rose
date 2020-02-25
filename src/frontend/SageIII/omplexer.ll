@@ -88,7 +88,7 @@ schedule        { return cond_return ( SCHEDULE ); }
 static          { return ( STATIC ); }  /*keyword in C/C++ */
 dynamic         { return cond_return ( DYNAMIC ); }
 guided          { return cond_return ( GUIDED ); }
-teams           { return cond_return ( TEAMS ); }
+teams           { printf("HELLOOOO!\n"); return cond_return ( TEAMS ); }
 distribute      { return cond_return ( DISTRIBUTE ); }
 runtime         { return cond_return ( RUNTIME ); }
 auto            { return ( AUTO ); } /*keyword in C/C++ ?*/

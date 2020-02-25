@@ -723,6 +723,7 @@ namespace OmpSupport
       case e_target_update: result = "target update"; break;
 
       case e_teams: result = "teams"; break;
+      case e_distribute: result = "distribute"; break;
 
           // Fortran only end directives
       case e_end_critical: result = "end critical"; break;

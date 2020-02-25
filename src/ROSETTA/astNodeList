@@ -542,6 +542,7 @@ SgOmpWorkshareStatement
 SgOmpTargetStatement
 SgOmpTargetDataStatement
 SgOmpTeamsStatement
+SgOmpDistributeStatement
 SgOmpSimdStatement
 SgOmpClause
 SgOmpBeginClause

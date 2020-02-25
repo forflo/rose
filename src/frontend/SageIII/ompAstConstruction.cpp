@@ -1483,6 +1483,10 @@ namespace OmpSupport
         result = new SgOmpTeamsStatement(NULL, body);
         ROSE_ASSERT (result != NULL);
         break;
+      case e_distribute:
+        result = new SgOmpDistributeStatement(NULL, body);
+        ROSE_ASSERT (result != NULL);
+        break;
       case e_target_data:
         result = new SgOmpTargetDataStatement(NULL, body);
         ROSE_ASSERT (result != NULL);

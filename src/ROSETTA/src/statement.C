@@ -302,6 +302,7 @@ Grammar::setUpStatements ()
     NEW_TERMINAL_MACRO (OmpTargetStatement,  "OmpTargetStatement",   "OMP_TARGET_STMT" );
     NEW_TERMINAL_MACRO (OmpTargetDataStatement,  "OmpTargetDataStatement",   "OMP_TARGET_DATA_STMT" );
     NEW_TERMINAL_MACRO (OmpTeamsStatement, "OmpTeamsStatement", "OMP_TEAMS_STMT")
+    NEW_TERMINAL_MACRO (OmpDistributeStatement, "OmpDistributeStatement", "OMP_DISTRIBUTE_STMT")
 
     NEW_TERMINAL_MACRO (OmpSimdStatement,    "OmpSimdStatement",     "OMP_SIMD_STMT" );
 
@@ -310,7 +311,7 @@ Grammar::setUpStatements ()
     // sensitive to
     NEW_NONTERMINAL_MACRO (OmpClauseBodyStatement,  OmpParallelStatement | OmpSingleStatement | OmpAtomicStatement |
               OmpTaskStatement| OmpForStatement| OmpDoStatement | OmpSectionsStatement | OmpTargetStatement| OmpTargetDataStatement |
-                           OmpTeamsStatement |
+              OmpTeamsStatement | OmpDistributeStatement |
               OmpSimdStatement| OmpForSimdStatement ,
         "OmpClauseBodyStatement",   "OMP_CLAUSEBODY_STMT", false );
 
@@ -4292,6 +4293,7 @@ Grammar::setUpStatements ()
     OmpTargetStatement.setFunctionSource            ("SOURCE_OMP_TARGET_STATEMENT", "../Grammar/Statement.code" );
     OmpTargetDataStatement.setFunctionSource            ("SOURCE_OMP_TARGET_DATA_STATEMENT", "../Grammar/Statement.code" );
     OmpTeamsStatement.setFunctionSource             ("SOURCE_OMP_TEAMS_STATEMENT", "../Grammar/Statement.code" );
+    OmpDistributeStatement.setFunctionSource         ("SOURCE_OMP_DISTRIBUTE_STATEMENT", "../Grammar/Statement.code" );
 
     OmpSimdStatement.setFunctionSource            ("SOURCE_OMP_SIMD_STATEMENT", "../Grammar/Statement.code" );
 

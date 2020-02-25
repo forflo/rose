@@ -20404,6 +20404,13 @@ SgOmpTeamsStatement::post_construction_initialization()
 SOURCE_OMP_TEAMS_STATEMENT_END
 
 
+SOURCE_OMP_DISTRIBUTE_STATEMENT_START
+void
+SgOmpDistributeStatement::post_construction_initialization()
+   {}
+SOURCE_OMP_DISTRIBUTE_STATEMENT_END
+
+
 SOURCE_OMP_TASKWAIT_STATEMENT_START
 void
 SgOmpTaskwaitStatement::post_construction_initialization()

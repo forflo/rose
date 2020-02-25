@@ -175,9 +175,33 @@ openmp_directive : parallel_directive
                  | section_directive
                  | target_directive
                  | teams_directive
+                 | distribute_directive
                  | target_data_directive
                  | simd_directive
                  ;
+
+distribute_directive: /* #pragma */ OMP DISTRIBUTE {
+                      ompattribute = buildOmpAttribute(e_distribute, gNode, true);
+                      omptype = e_distribute;
+                      cur_omp_directive = omptype;
+                      }
+                      ;
+
+distribute_clause_optseq : /* empty */
+                         | distribute_clause_optseq
+                         ;
+
+distribute_clause_seq : distribute_clause
+                      | distribute_clause_seq distribute_clause
+                      | distribute_clause_seq ',' distribute_clause
+                      ;
+
+distribute_clause : lastprivate_clause
+                  | firstprivate_clause
+                  | private_clause
+                  | collapse_clause
+                  /* | dist_schedule_clause F. Mayer: TODO */
+                  ;
 
 
 teams_directive: /* #pragma */ OMP TEAMS {
