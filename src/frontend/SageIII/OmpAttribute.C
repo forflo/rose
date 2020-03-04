@@ -901,6 +901,9 @@ namespace OmpSupport
       case e_end_task:
       case e_end_workshare:
 
+      case e_teams:
+      case e_distribute:
+
       // Experimental OpenMP Accelerator directives
       case e_target:
       case e_target_declare:
