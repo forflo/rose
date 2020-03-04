@@ -1103,6 +1103,9 @@ namespace OmpSupport
       case e_target:
       case e_target_data:
 
+      case e_teams:
+      case e_distribute:
+
       case e_master: 
       case e_critical:
       case e_barrier:
