@@ -185,6 +185,7 @@ distribute_directive: /* #pragma */ OMP DISTRIBUTE {
                       omptype = e_distribute;
                       cur_omp_directive = omptype;
                       }
+                      distribute_clause_optseq
                       ;
 
 distribute_clause_optseq : /* empty */
