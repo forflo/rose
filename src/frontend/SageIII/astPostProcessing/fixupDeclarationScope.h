@@ -1,6 +1,8 @@
 #ifndef FIXUP_DECLARATION_SCOPE_H
 #define FIXUP_DECLARATION_SCOPE_H
 
+#include <set>
+
 // DQ (6/11/2013):
 /*! \brief Fixup all SgDeclarationStatement to have a consistant scope (between the defining and all non-defining declarations).
 
@@ -19,7 +21,19 @@ class FixupAstDeclarationScope
        // This the sets of all associated declaration (defining and all non-defining) and is indexed by the firstNondefiningDeclaration.
           std::map<SgDeclarationStatement*,std::set<SgDeclarationStatement*>* > mapOfSets;
 
-          virtual ~FixupAstDeclarationScope() {};
+          virtual ~FixupAstDeclarationScope() {
+                std::set<std::set<SgDeclarationStatement*> *> unique_ptrs;
+		for (auto &i : mapOfSets) {
+			std::set<SgDeclarationStatement*> *set_to_delete = i.second;
+			unique_ptrs.insert(set_to_delete);
+		} 
+		for (auto &j : unique_ptrs) {
+			std::cout << "delete " << j << " ";
+			delete j;
+		}
+		std::cout << std::endl;
+		std::cout << "run dtor in FisupAstDelcarationScope" << std::endl;
+	  };
           void visit ( SgNode* node );
 
        // DQ (3/24/2016): Adding Robb's meageage mechanism (data member and function).
